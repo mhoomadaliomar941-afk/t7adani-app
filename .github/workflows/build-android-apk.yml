@@ -1,65 +1,65 @@
-name: Build Android APK
+name: Build Android APK (T7ADANI)
 
 on:
   push:
+    branches: [ "main", "master" ]
   workflow_dispatch:
 
 jobs:
-  build:
+  build-apk:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout Source
         uses: actions/checkout@v4
 
-      - name: Set up Node.js 20
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      - name: Set up Java 17 (Temurin)
+      - name: Setup Java 21 (Required for Capacitor 6)
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '17'
+          java-version: '21'
 
-      - name: Initialize Project and Capacitor Android
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Prepare Web Assets & Capacitor Config
+        run: |
+          mkdir -p www
+          if [ -f "dist/index.html" ]; then
+            cp -r dist/* www/
+          elif [ -f "index.html" ]; then
+            cp index.html www/index.html
+          fi
+          cat << 'EOF' > capacitor.config.json
+          {
+            "appId": "com.t7adani.app",
+            "appName": "تحدّاني - T7ADANI",
+            "webDir": "www",
+            "bundledWebRuntime": false
+          }
+          EOF
+
+      - name: Install Capacitor 6 & Generate Android Project
         run: |
           npm init -y
-          npm install @capacitor/core @capacitor/cli @capacitor/android
-          mkdir -p dist
-          cat << 'EOF' > dist/index.html
-          <!DOCTYPE html>
-          <html lang="ar" dir="rtl">
-          <head>
-            <meta charset="UTF-8">
-            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>T7ADANI</title>
-            <style>
-              body {
-                font-family: system-ui, -apple-system, sans-serif;
-                text-align: center;
-                padding: 50px;
-                direction: rtl;
-              }
-            </style>
-          </head>
-          <body>
-            <h1>تحداني - T7ADANI</h1>
-            <p>مرحباً بك في تطبيق تحداني</p>
-          </body>
-          </html>
-          EOF
-          npx cap init T7ADANI com.t7adani.app --web-dir dist
+          npm install @capacitor/core@6 @capacitor/cli@6 @capacitor/android@6
+          rm -rf android
           npx cap add android
+          npx cap sync android
 
-      - name: Build Android APK
+      - name: Build Debug APK with Gradle
         run: |
           chmod +x android/gradlew
           cd android
-          ./gradlew assembleDebug
+          ./gradlew assembleDebug --no-daemon
 
-      - name: Upload APK Artifact
+      - name: Upload Ready APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: t7adani-debug-apk
           path: android/app/build/outputs/apk/debug/app-debug.apk
+          
