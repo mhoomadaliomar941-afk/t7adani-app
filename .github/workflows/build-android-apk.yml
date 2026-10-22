@@ -1,0 +1,65 @@
+name: Build Android APK
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Set up Java 17 (Temurin)
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Initialize Project and Capacitor Android
+        run: |
+          npm init -y
+          npm install @capacitor/core @capacitor/cli @capacitor/android
+          mkdir -p dist
+          cat << 'EOF' > dist/index.html
+          <!DOCTYPE html>
+          <html lang="ar" dir="rtl">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>T7ADANI</title>
+            <style>
+              body {
+                font-family: system-ui, -apple-system, sans-serif;
+                text-align: center;
+                padding: 50px;
+                direction: rtl;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>تحداني - T7ADANI</h1>
+            <p>مرحباً بك في تطبيق تحداني</p>
+          </body>
+          </html>
+          EOF
+          npx cap init T7ADANI com.t7adani.app --web-dir dist
+          npx cap add android
+
+      - name: Build Android APK
+        run: |
+          chmod +x android/gradlew
+          cd android
+          ./gradlew assembleDebug
+
+      - name: Upload APK Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: t7adani-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
